@@ -11,8 +11,8 @@
  export const IV_LENGTH_BYTES = 12;
 
  export interface Sealed {
-   iv: Uint8Array;
-   ciphertext: Uint8Array;
+   iv: Uint8Array<ArrayBuffer>;
+   ciphertext: Uint8Array;<ArrayBuffer>;
  }
  
  export async function encryptPayload<T>(key: CryptoKey, payload: T): Promise<Sealed> {
