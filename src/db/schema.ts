@@ -13,8 +13,8 @@ export interface EncryptedRecord {
   accountId: string | null;
   /** Plaintext "YYYY-MM" bucket — needed to query a given month's data. Not sensitive on its own. */
   yearMonth: string | null;
-  iv: Uint8Array;
-  ciphertext: Uint8Array;
+  iv: Uint8Array<ArrayBuffer>;
+  ciphertext: Uint8Array<ArrayBuffer>;
   /** Version of the decrypted payload's shape, for future migrations. */
   payloadVersion: number;
   createdAt: number;
@@ -30,19 +30,19 @@ export interface EncryptedRecord {
 export interface VaultMeta {
   id: 'singleton';
   formatVersion: number;
-  kdfSalt: Uint8Array;
+  kdfSalt: Uint8Array<ArrayBuffer>;
   kdfIterations: number;
   wrappedMEK: {
-    iv: Uint8Array;
-    wrapped: Uint8Array;
+    iv: Uint8Array<ArrayBuffer>;
+    wrapped: Uint8Array<ArrayBuffer>;
   };
   /** Present only if the user opted in to a recovery code at creation. */
   recovery?: {
-    kdfSalt: Uint8Array;
+    kdfSalt: Uint8Array<ArrayBuffer>;
     kdfIterations: number;
     wrappedMEK: {
-      iv: Uint8Array;
-      wrapped: Uint8Array;
+      iv: Uint8Array<ArrayBuffer>;
+      wrapped: Uint8Array<ArrayBuffer>;
     };
   };
   lockTimeoutMinutes: number; // 0 = lock immediately on app close
