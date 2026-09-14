@@ -12,7 +12,7 @@
 
  export interface Sealed {
    iv: Uint8Array<ArrayBuffer>;
-   ciphertext: Uint8Array;<ArrayBuffer>;
+   ciphertext: Uint8Array<ArrayBuffer>;
  }
  
  export async function encryptPayload<T>(key: CryptoKey, payload: T): Promise<Sealed> {
