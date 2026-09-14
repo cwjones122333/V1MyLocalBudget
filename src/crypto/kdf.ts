@@ -14,7 +14,7 @@
 export const PBKDF2_ITERATIONS = 600_000;
 export const SALT_LENGTH_BYTES = 16;
 
-export function generateSalt(): Uint8Array {
+export function generateSalt(): Uint8Array<ArrayBuffer> {
   return crypto.getRandomValues(new Uint8Array(SALT_LENGTH_BYTES));
 }
 
@@ -26,7 +26,7 @@ export function generateSalt(): Uint8Array {
  */
 export async function deriveKeyFromPassphrase(
   passphrase: string,
-  salt: Uint8Array,
+  salt: Uint8Array<ArrayBuffer>,
   iterations: number = PBKDF2_ITERATIONS
 ): Promise<CryptoKey> {
   const encoder = new TextEncoder();
