@@ -26,8 +26,8 @@
  const WRAP_IV_LENGTH_BYTES = 12;
 
  export interface WrappedKey {
-   iv: Uint8Array;
-   wrapped: Uint8Array;
+   iv: Uint8Array<ArrayBuffer>;
+   wrapped: Uint8Array<ArrayBuffer>;
  }
  
  /** Generates a brand-new random 256-bit MEK. Extractable so it can be wrapped once, immediately below. */
