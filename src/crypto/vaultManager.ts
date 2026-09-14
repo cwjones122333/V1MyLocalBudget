@@ -2,7 +2,7 @@ import { db } from '../db/dexieClient';
 import { CURRENT_FORMAT_VERSION } from '../db/schema';
 import type { VaultMeta } from '../db/schema';
 import { deriveKeyFromPassphrase, generateSalt, PBKDF2_ITERATIONS } from './kdf';
-import { createAndWrapNewMEK, unwrapMEKForSession } from './keys';
+import { createAndWrapNewMEK, unwrapMEKForSession, rewrapMEK } from './keys';
 
 export class IncorrectPassphraseError extends Error {
   constructor() {
@@ -84,9 +84,7 @@ export async function createVault(
     // Re-wrap the SAME MEK under the recovery key. We need the extractable
     // MEK again momentarily to do this — createAndWrapNewMEK already
     // discarded its extractable reference, so we unwrap-then-rewrap using
-    // the passphrase path we just created, via rewrapMEK's pattern inline
-    // here to avoid a second MEK ever being generated.
-    const { rewrapMEK } = await import('./keys');
+    // the passphrase path we just created.
     const recoveryWrapped = await rewrapMEK(kek, wrappedKey, recoveryKek);
 
     meta.recovery = {
@@ -158,7 +156,6 @@ export async function changePassphrase(currentPassphrase: string, newPassphrase:
   const newSalt = generateSalt();
   const newKek = await deriveKeyFromPassphrase(newPassphrase, newSalt);
 
-  const { rewrapMEK } = await import('./keys');
   const newWrapped = await rewrapMEK(oldKek, meta.wrappedMEK, newKek);
 
   await db.vaultMeta.update('singleton', {
