@@ -1,99 +1,64 @@
 /**
- * Envelope encryption key management.
- *
- * - The Master Encryption Key (MEK) is a random AES-256 key generated once
- *   at vault creation. It directly encrypts every financial record and
- *   never changes for the life of the vault (unless explicitly rotated).
- * - The Key-Encryption Key (KEK) is derived from the user's passphrase
- *   (see kdf.ts) and is only ever used to "wrap" (encrypt) or "unwrap"
- *   (decrypt) the MEK — never to touch financial data directly.
- *
- * Why: changing your passphrase only requires re-wrapping the MEK, not
- * re-encrypting the entire database. It also means a second unlock method
- * (like the recovery code) can wrap the same MEK independently.
- *
- * A note on `extractable`: WebCrypto's wrapKey() requires the key you're
- * wrapping to have been generated as extractable. We generate the MEK as
- * extractable ONLY long enough to wrap it, then immediately re-derive a
- * NON-extractable working copy for actual use during the session (see
- * unwrapMEKForSession below). This limits, but does not eliminate, the
- * window in which raw key bytes could theoretically be pulled out of the
- * CryptoKey object by code running in the page. This is the same class of
- * "unlocked session" exposure described in the Phase 1 threat model — it
- * isn't a new hole, just being explicit about where it lives.
+ * A deliberately simple, dependency-free strength estimate. This is NOT a
+ * substitute for a real estimator like zxcvbn — it doesn't know about
+ * common passwords, dictionary words, or keyboard patterns. It only checks
+ * length and character variety, which is enough to catch obviously weak
+ * passphrases ("password", "1234") without pulling in a large WASM/JS
+ * dependency. If you want stronger estimation later, zxcvbn-ts runs
+ * entirely client-side and could be dropped in here.
  */
 
- const WRAP_IV_LENGTH_BYTES = 12;
+export type StrengthLevel = 'too-weak' | 'weak' | 'ok' | 'strong';
 
- export interface WrappedKey {
-   iv: Uint8Array;
-   wrapped: Uint8Array;
- }
- 
- /** Generates a brand-new random 256-bit MEK. Extractable so it can be wrapped once, immediately below. */
- async function generateExtractableMEK(): Promise<CryptoKey> {
-   return crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, [
-     'encrypt',
-     'decrypt'
-   ]);
- }
- 
- async function wrapMEK(kek: CryptoKey, mek: CryptoKey): Promise<WrappedKey> {
-   const iv = crypto.getRandomValues(new Uint8Array(WRAP_IV_LENGTH_BYTES));
-   const wrappedBuffer = await crypto.subtle.wrapKey('raw', mek, kek, {
-     name: 'AES-GCM',
-     iv
-   });
-   return { iv, wrapped: new Uint8Array(wrappedBuffer) };
- }
- 
- /**
-  * Unwraps a wrapped MEK into a NON-extractable working key, suitable for
-  * the entire unlocked session. Throws if `kek` is wrong (wrong passphrase)
-  * — this failure IS the passphrase verification; there is no separate
-  * password hash stored anywhere.
-  */
- export async function unwrapMEKForSession(kek: CryptoKey, wrappedKey: WrappedKey): Promise<CryptoKey> {
-   return crypto.subtle.unwrapKey(
-     'raw',
-     wrappedKey.wrapped,
-     kek,
-     { name: 'AES-GCM', iv: wrappedKey.iv },
-     { name: 'AES-GCM', length: 256 },
-     false, // non-extractable working copy
-     ['encrypt', 'decrypt']
-   );
- }
- 
- /**
-  * Creates a brand new MEK and wraps it once under the given KEK.
-  * Returns both the wrapped form (to persist) and a non-extractable session
-  * copy (to use immediately, without ever persisting the extractable one).
-  */
- export async function createAndWrapNewMEK(
-   kek: CryptoKey
- ): Promise<{ wrappedKey: WrappedKey; sessionKey: CryptoKey }> {
-   const extractableMEK = await generateExtractableMEK();
-   const wrappedKey = await wrapMEK(kek, extractableMEK);
-   const sessionKey = await unwrapMEKForSession(kek, wrappedKey);
-   return { wrappedKey, sessionKey };
- }
- 
- /**
-  * Used when changing the passphrase or adding a recovery-code wrapping:
-  * unwraps the MEK as extractable (briefly) under the OLD kek, then wraps it
-  * under a NEW kek. The extractable reference is not returned or persisted.
-  */
- export async function rewrapMEK(oldKek: CryptoKey, wrappedKey: WrappedKey, newKek: CryptoKey): Promise<WrappedKey> {
-   const extractableMEK = await crypto.subtle.unwrapKey(
-     'raw',
-     wrappedKey.wrapped,
-     oldKek,
-     { name: 'AES-GCM', iv: wrappedKey.iv },
-     { name: 'AES-GCM', length: 256 },
-     true, // must be extractable to wrap again
-     ['encrypt', 'decrypt']
-   );
-   return wrapMEK(newKek, extractableMEK);
- }
- 
+export interface StrengthResult {
+  level: StrengthLevel;
+  score: 0 | 1 | 2 | 3; // for the 3-segment meter in the UI
+  message: string;
+}
+
+export function estimatePassphraseStrength(passphrase: string): StrengthResult {
+  const length = passphrase.length;
+
+  if (length === 0) {
+    return { level: 'too-weak', score: 0, message: '' };
+  }
+
+  const hasLower = /[a-z]/.test(passphrase);
+  const hasUpper = /[A-Z]/.test(passphrase);
+  const hasDigit = /[0-9]/.test(passphrase);
+  const hasSymbol = /[^a-zA-Z0-9]/.test(passphrase);
+  const variety = [hasLower, hasUpper, hasDigit, hasSymbol].filter(Boolean).length;
+
+  // A long passphrase of just lowercase words ("correct horse battery
+  // staple") is genuinely stronger than a short complex one, so length
+  // dominates the score rather than character-class box-ticking.
+  if (length < 10) {
+    return {
+      level: 'too-weak',
+      score: 0,
+      message: 'Too short — use at least 10 characters, longer if possible.'
+    };
+  }
+
+  if (length < 14 && variety < 3) {
+    return {
+      level: 'weak',
+      score: 1,
+      message: 'Weak — add more length or mix in numbers/symbols.'
+    };
+  }
+
+  if (length < 20) {
+    return {
+      level: 'ok',
+      score: 2,
+      message: 'Reasonable. Longer is still better for a financial vault.'
+    };
+  }
+
+  return {
+    level: 'strong',
+    score: 3,
+    message: 'Strong.'
+  };
+}
