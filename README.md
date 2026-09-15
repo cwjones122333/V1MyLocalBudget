@@ -67,3 +67,68 @@ npm run preview
   while unlocked. Locking clears the reference immediately.
 - See the architecture discussion earlier in this conversation for the full
   threat model — it applies to this exact code.
+# Local Budget — Phase 3
+
+A private, local-first budgeting app. Phase 2 built the encrypted vault
+(create/unlock/lock, encrypted persistence, backup/restore). This phase adds
+the first real budgeting functionality: accounts, transactions, and
+categories, all encrypted the same way as everything else.
+
+## What's in this phase
+
+- **Accounts** — add checking/savings/credit card/cash/investment/loan/other
+  accounts with a starting balance; archive instead of delete.
+- **Transactions** — add/edit/delete transactions against an account, with
+  merchant, date, amount, category, and notes. Account balances on the
+  Accounts screen are computed live as starting balance + all transactions.
+- **Categories** — a default hierarchy (Housing, Food, Transportation,
+  Subscriptions, Income, each with sub-categories) is seeded automatically
+  the first time you open the app. You can add your own on top of it.
+
+**Deliberately not here yet**, per the phased plan: transfers between
+accounts, reconciliation, CSV import, budgets, dashboard, net worth. Those
+come in later phases.
+
+## Running it
+
+You need Node.js 18+ installed.
+
+```bash
+cd budget-app
+npm install
+npm run build   # catches type errors before you even open the app
+npm run dev
+```
+
+Then open the URL it prints (usually `http://localhost:5173`). On iPhone:
+`npm run dev -- --host`, open the printed network address in Safari, "Add to
+Home Screen."
+
+## What to test this phase
+
+1. Add an account with a starting balance.
+2. Add a transaction against it (try both "Spent" and "Received") — confirm
+   the account balance updates correctly on the Accounts screen.
+3. Edit a transaction — change its amount, category, or account — confirm
+   it saves and the balance recalculates.
+4. Delete a transaction — confirm it disappears and the balance adjusts.
+5. Open the Categories tab — the five default groups should already be
+   there. Add a custom category and confirm it appears as a choice when
+   adding a transaction.
+6. Reload the page mid-session — should land on Unlock; after unlocking,
+   all accounts/transactions/categories should still be there, correctly
+   decrypted.
+7. Everything from the Phase 2 checklist should still work unchanged
+   (create/unlock/lock/recovery code/backup export).
+
+## Security notes specific to this codebase
+
+- `src/crypto/` is still the only place cryptographic operations happen.
+- `src/repositories/recordStore.ts` is the only place outside `src/crypto`
+  that touches the encrypted `db.records` table directly — every domain
+  repository (accounts/transactions/categories) goes through it, so the
+  encrypt/decrypt boundary stays in one place.
+- Account and transaction records are encrypted the same way vault data
+  always has been — see the threat model from Phase 1 for what that does
+  and doesn't protect against.
+
