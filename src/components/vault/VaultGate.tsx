@@ -5,7 +5,7 @@ import { useAutoLock } from '../../hooks/useAutoLock';
 import { CreateVaultScreen } from './CreateVaultScreen';
 import { UnlockScreen } from './UnlockScreen';
 import { RestoreBackupScreen } from './RestoreBackupScreen';
-import { UnlockedShell } from '../shared/UnlockedShell';
+import { AppShell } from '../shared/AppShell';
 
 export function VaultGate() {
   const status = useVaultStore((s) => s.status);
@@ -29,7 +29,7 @@ export function VaultGate() {
   }
 
   if (status === 'unlocked') {
-    return <UnlockedShell />;
+    return <AppShell />;
   }
 
   if (showRestore) {
