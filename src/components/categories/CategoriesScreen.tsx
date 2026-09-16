@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useCategories } from '../../hooks/useCategories';
-import { buildCategoryTree, createCategory } from '../../repositories/categoriesRepository';
+import { buildCategoryTree, createCategory, deleteCategory } from '../../repositories/categoriesRepository';
+import { RulesSection } from './RulesSection';
 
 export function CategoriesScreen() {
   const { categories, loading } = useCategories();
@@ -29,6 +30,17 @@ export function CategoriesScreen() {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    setBusy(true);
+    try {
+      await deleteCategory(id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div>
       <div className="section-header">
@@ -45,12 +57,28 @@ export function CategoriesScreen() {
                 <div className="list-item__main">
                   <div className="list-item__title">{node.category.name}</div>
                 </div>
+                <button
+                  type="button"
+                  className="link-danger"
+                  onClick={() => handleDelete(node.category.id)}
+                  disabled={busy}
+                >
+                  Remove
+                </button>
               </div>
               {node.children.map((child) => (
                 <div key={child.id} className="list-item" style={{ cursor: 'default', paddingLeft: 32 }}>
                   <div className="list-item__main">
                     <div className="list-item__meta">{child.name}</div>
                   </div>
+                  <button
+                    type="button"
+                    className="link-danger"
+                    onClick={() => handleDelete(child.id)}
+                    disabled={busy}
+                  >
+                    Remove
+                  </button>
                 </div>
               ))}
             </div>
@@ -84,6 +112,10 @@ export function CategoriesScreen() {
           {busy ? 'Adding…' : 'Add category'}
         </button>
       </form>
+
+      <div className="divider" />
+
+      <RulesSection />
     </div>
   );
 }
