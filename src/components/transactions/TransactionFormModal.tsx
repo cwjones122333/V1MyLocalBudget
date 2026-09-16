@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { createTransaction, updateTransaction, deleteTransaction } from '../../repositories/transactionsRepository';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useCategories } from '../../hooks/useCategories';
@@ -23,6 +23,17 @@ export function TransactionFormModal({ transaction, onClose }: Props) {
   const categoryTree = buildCategoryTree(categories);
 
   const [accountId, setAccountId] = useState(transaction?.accountId ?? accounts[0]?.id ?? '');
+
+  // accounts loads asynchronously, so on first render it's still []  and
+  // the line above locks accountId in as ''. Once accounts actually
+  // arrives, default to the first one — but only for a brand-new
+  // transaction, and only if the user hasn't already picked something.
+  useEffect(() => {
+    if (!transaction && !accountId && accounts.length > 0) {
+      setAccountId(accounts[0].id);
+    }
+  }, [transaction, accountId, accounts]);
+
   const [date, setDate] = useState(transaction?.date ?? todayIso());
   const [merchant, setMerchant] = useState(transaction?.merchant ?? '');
   const [txType, setTxType] = useState<Exclude<TransactionType, 'transfer'>>(
