@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useCategories } from '../../hooks/useCategories';
 import { buildCategoryTree, createCategory, deleteCategory } from '../../repositories/categoriesRepository';
-import { RulesSection } from './RulesSection';
 
 export function CategoriesScreen() {
   const { categories, loading } = useCategories();
@@ -112,10 +111,6 @@ export function CategoriesScreen() {
           {busy ? 'Adding…' : 'Add category'}
         </button>
       </form>
-
-      <div className="divider" />
-
-      <RulesSection />
     </div>
   );
 }
