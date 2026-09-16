@@ -1,4 +1,4 @@
-import { putRecord, listRecordsByType, getRecordWithMeta } from './recordStore';
+import { putRecord, listRecordsByType, getRecordWithMeta, deleteRecord } from './recordStore';
 import { newId } from '../domain/uuid';
 import type { CategoryPayload } from '../types/domain';
 
@@ -30,6 +30,16 @@ export async function renameCategory(id: string, name: string): Promise<void> {
     payload,
     createdAt: existing.createdAt
   });
+}
+
+/**
+ * Deletes a category outright. Transactions or rules that already point at
+ * this categoryId are NOT reassigned — they'll just show as uncategorized
+ * going forward. Deleting a top-level category does not delete its
+ * children; delete those separately first if you want them gone too.
+ */
+export async function deleteCategory(id: string): Promise<void> {
+  await deleteRecord(id);
 }
 
 /** Builds a simple two-level tree: top-level categories with their direct children. Deeper nesting isn't supported yet, matching the flat example hierarchy from the spec. */
